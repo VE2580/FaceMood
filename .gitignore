@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# PyTorch 模型文件（太大）
+*.pth
+*.pt
+checkpoints/
+save_path/
+
+# 数据集（太大，不要上传）
+dataset/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
