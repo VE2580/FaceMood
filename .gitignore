@@ -14,9 +14,6 @@ ENV/
 checkpoints/
 save_path/
 
-# 数据集（太大，不要上传）
-dataset/
-
 # IDE
 .vscode/
 .idea/
