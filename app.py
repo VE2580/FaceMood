@@ -205,27 +205,30 @@ def main():
             with col1:
                 st.subheader("🖼️ 原始图片")
                 image = Image.open(uploaded_file)
-                image_np = np.array(image)
-                if len(image_np.shape) == 2:
-                    image_np = cv2.cvtColor(image_np, cv2.COLOR_GRAY2BGR)
-                elif image_np.shape[2] == 4:
-                    image_np = cv2.cvtColor(image_np, cv2.COLOR_RGBA2BGR)
-                st.image(image_np, use_container_width=True)
+                image_rgb = np.array(image)
+
+                if len(image_rgb.shape) == 2:
+                    image_rgb = cv2.cvtColor(image_rgb, cv2.COLOR_GRAY2RGB)
+                elif image_rgb.shape[2] == 4:
+                    image_rgb = cv2.cvtColor(image_rgb, cv2.COLOR_RGBA2RGB)
+
+                st.image(image_rgb, use_container_width=True)
 
             with col2:
                 st.subheader("📊 识别结果")
 
-                # 人脸检测
-                gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
+                image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+
+                gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
                 faces = detector.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
 
                 if len(faces) > 0:
                     (x, y, w, h) = faces[0]
-                    face_bgr = image_np[y:y + h, x:x + w]
+                    face_bgr = image_bgr[y:y + h, x:x + w]
                     face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
                     face_pil = Image.fromarray(face_rgb)
 
-                    emotion_probs, pred_emotion, confidence, _ = detector.detect_emotion(image_np)
+                    emotion_probs, pred_emotion, confidence, _ = detector.detect_emotion(image_bgr)
 
                     st.success(f"**识别结果**: {pred_emotion}")
                     st.info(f"**置信度**: {confidence:.2%}")
