@@ -11,6 +11,13 @@
     "learning_rate": 0.001,
     "weight_decay": 1e-4,
     "optimizer": "Adam",
+    "loss_type": "cross_entropy",
+    "focal_gamma": 2.0,
+    "lr_scheduler": "cosine",
+    "eta_min": 1e-6,
+    "lr_patience": 5,
+    "lr_factor": 0.5,
+    "early_stop_patience": 10,
     "device": "cuda",
     "seed": 42,
     "save_path": "./checkpoints"

@@ -89,28 +89,10 @@ class EmotionDetector:
         cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
         self.face_cascade = cv2.CascadeClassifier(cascade_path)
 
-    def detect_emotion(self, frame_bgr):
-        """检测单帧的情绪"""
-        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-        faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-        if len(faces) == 0:
-            return None, None, None, frame_bgr
-
-        # 取最大的人脸
-        face_rect = max(faces, key=lambda x: x[2] * x[3])
-        (x, y, w, h) = face_rect
-
-        # 绘制人脸框
-        frame_with_box = frame_bgr.copy()
-        cv2.rectangle(frame_with_box, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-        # 提取人脸区域
-        face_bgr = frame_bgr[y:y + h, x:x + w]
+    def _predict_face(self, face_bgr):
+        """对裁剪好的人脸区域做推理，返回 (emotion_probs, pred_emotion, confidence)。"""
         face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
         face_pil = Image.fromarray(face_rgb)
-
-        # 预处理和预测
         face_tensor = self.data_trans(face_pil).unsqueeze(0).to(self.device)
 
         with torch.no_grad():
@@ -121,6 +103,39 @@ class EmotionDetector:
 
         emotion_probs = {self.label_name[i]: probabilities[0][i].item() for i in range(len(self.label_name))}
         pred_emotion = self.label_name[pred_idx]
+        return emotion_probs, pred_emotion, confidence
+
+    def detect_emotion(self, frame_bgr, fallback_full_image=False):
+        """检测单帧的情绪。
+
+        fallback_full_image=True: 人脸检测失败时，若图片尺寸较小（典型的数据集裁剪人脸），
+        则把整张图当作人脸区域送入模型，避免 Haar Cascade 对紧裁剪人脸失效的问题。
+        """
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+        if len(faces) == 0:
+            # 回退：小尺寸图片 ≈ 已经裁剪好的人脸
+            h, w = frame_bgr.shape[:2]
+            if fallback_full_image and w <= 300 and h <= 300:
+                emotion_probs, pred_emotion, confidence = self._predict_face(frame_bgr)
+                frame_with_box = frame_bgr.copy()
+                cv2.putText(frame_with_box, f"{pred_emotion} ({confidence:.2f})", (5, 20),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2, cv2.LINE_AA)
+                return emotion_probs, pred_emotion, confidence, frame_with_box
+            return None, None, None, frame_bgr
+
+        # 取最大的人脸
+        face_rect = max(faces, key=lambda x: x[2] * x[3])
+        (x, y, w, h) = face_rect
+
+        # 绘制人脸框
+        frame_with_box = frame_bgr.copy()
+        cv2.rectangle(frame_with_box, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        # 提取人脸区域并推理
+        face_bgr = frame_bgr[y:y + h, x:x + w]
+        emotion_probs, pred_emotion, confidence = self._predict_face(face_bgr)
 
         # 在帧上显示结果
         result_text = f"{pred_emotion} ({confidence:.2f})"
@@ -219,17 +234,10 @@ def main():
 
                 image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
 
-                gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-                faces = detector.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+                emotion_probs, pred_emotion, confidence, processed_frame = \
+                    detector.detect_emotion(image_bgr, fallback_full_image=True)
 
-                if len(faces) > 0:
-                    (x, y, w, h) = faces[0]
-                    face_bgr = image_bgr[y:y + h, x:x + w]
-                    face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
-                    face_pil = Image.fromarray(face_rgb)
-
-                    emotion_probs, pred_emotion, confidence, _ = detector.detect_emotion(image_bgr)
-
+                if pred_emotion is not None:
                     st.success(f"**识别结果**: {pred_emotion}")
                     st.info(f"**置信度**: {confidence:.2%}")
 
