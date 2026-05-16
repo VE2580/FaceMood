@@ -18,7 +18,7 @@ def main():
 
     # 图像预处理 - 添加归一化，与 ResNet 预训练保持一致
     data_trans = transforms.Compose([
-        transforms.Resize((128, 128)),
+        transforms.Resize(config['img_size'],config['img_size']),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
